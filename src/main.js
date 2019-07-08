@@ -52,25 +52,30 @@ start_btn.onclick = startEmu;
 
 function startEmu() {
   let rom_name =
-    rom_select.value | rom_select.options[rom_select.selectedIndex].value;
-  if (rom_name == 'Select a ROM!') {
+    rom_select.value || rom_select.options[rom_select.selectedIndex].value;
+  console.log(rom_name);
+  if (rom_name == default_string) {
     alert('Please select a ROM');
     return;
   }
-  chip8.init();
+  // chip8.init();
   let xhr = new XMLHttpRequest();
   xhr.onreadystatechange = handleStateChange;
-  xhr.open('GET', `roms/${rom_name}`);
+  xhr.open('GET', `./roms/${rom_name}`);
+  xhr.send();
 
   function handleStateChange() {
     if (xhr.readyState == 4) {
-      loadRom(xhr.status == 200 ? xhr.responseText : null);
+      loadRom(xhr.status == 200 ? xhr.response : null);
     }
   }
 
-  function loadRom() {}
+  function loadRom(response) {
+    console.log(response);
+  }
 
   // TODO: Figure out how to load ROM and start emulation
 }
 
+chip8.init();
 // while (false) {}
