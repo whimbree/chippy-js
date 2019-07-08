@@ -68,7 +68,7 @@ function startEmu() {
     }
   }
 
-  function loadRom()
+  function loadRom() {}
 
   // TODO: Figure out how to load ROM and start emulation
 }
