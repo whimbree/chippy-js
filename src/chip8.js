@@ -6,7 +6,7 @@ class Chip8 {
     this.displayHeight = 32;
     this.display = new Uint8Array(this.displayWidth * this.displayHeight);
     this.memory = new Uint8Array(0xfff);
-    this.stack = new Uint8Array(16);
+    this.stack = new Uint16Array(16);
     this.V = new Uint8Array(16);
     this.SP = null;
     this.PC = null;
@@ -78,6 +78,8 @@ class Chip8 {
     for (let i = 0; i < rom.length; i++) this.memory[i + 0x200] = rom[i];
   }
 
+  // FIXME: This should run at 60Hz, it currently does not
+  // TODO: Somehow target 60fps?
   handleTimers() {
     if (this.delayTimer > 0) this.delayTimer--;
     if (this.soundTimer > 0) {
@@ -110,7 +112,10 @@ class Chip8 {
     if (this.halted) return;
 
     let opcode = (this.memory[this.PC] << 8) | this.memory[this.PC + 1];
-    console.log(`${'0x' + opcode.toString(16).toUpperCase()}`);
+    console.log(
+      `Opcode: ${'0x' +
+        opcode.toString(16).toUpperCase()} | PC: 0x${this.PC.toString(16)}`
+    );
 
     switch (opcode & 0xf000) {
       case 0x0000:
@@ -127,6 +132,11 @@ class Chip8 {
         this.stack[this.SP] = this.PC;
         this.SP++;
         this.PC = opcode & 0x0fff;
+        console.log(
+          `Jump to PC: 0x${this.PC.toString(16)} | From PC: 0x${this.stack[
+            this.SP - 1
+          ].toString(16)}`
+        );
         break;
       case 0x3000:
         //3xkk - SE Vx, byte
@@ -249,6 +259,7 @@ class Chip8 {
         this.SP--;
         this.PC = this.stack[this.SP];
         this.PC += 2;
+        console.log(`Return to PC: 0x${this.PC.toString(16)}`);
         break;
       default:
         console.log(
@@ -406,6 +417,7 @@ class Chip8 {
       case 0x0029:
         //Fx29 - LD F, Vx
         //Set I = location of sprite for digit Vx
+        // FIXME: This seems broken...
         this.I = this.memory[this.V[(opcode & 0x0f00) >> 8] * 5];
         this.PC += 2;
         break;
@@ -449,6 +461,7 @@ class Chip8 {
         console.log(
           `Invalid Opcode: ${'0x' + opcode.toString(16).toUpperCase()}`
         );
+        this.PC += 2;
         break;
     }
   }
