@@ -65,13 +65,17 @@ class Chip8 {
       this.memory[i] = font[i];
     }
 
+    // Reset display
+    this.display = new Uint8Array(this.displayWidth * this.displayHeight);
+
     this.halted = false;
     this.stopped = false;
+    this.drawScreen = true;
   }
 
   loadROM(rom) {
     // Expects a rom in UInt8 Array format
-    for (let i = 0; i < rom.length; i++) this.memory[i + 0x200] = program[i];
+    for (let i = 0; i < rom.length; i++) this.memory[i + 0x200] = rom[i];
   }
 
   handleTimers() {
@@ -91,16 +95,26 @@ class Chip8 {
     }
   }
 
+  runCycle() {
+    this.executeOpcode();
+    this.handleTimers();
+    if (this.drawScreen == true) {
+      this.canvasRender.render(this.display);
+      this.drawScreen = false;
+    }
+  }
+
   //Fetches and Executes an Opcode
   //If cpu is halted then just return
   executeOpcode() {
     if (this.halted) return;
 
-    let opCode = (this.memory[this.PC] << 8) | this.memory[this.PC + 1];
+    let opcode = (this.memory[this.PC] << 8) | this.memory[this.PC + 1];
+    console.log(`${'0x' + opcode.toString(16).toUpperCase()}`);
 
     switch (opcode & 0xf000) {
       case 0x0000:
-        handle_0x0(opcode);
+        this.handle_0x0(opcode);
         break;
       case 0x1000:
         //1nnn - JP addr
@@ -146,7 +160,7 @@ class Chip8 {
         this.PC += 2;
         break;
       case 0x8000:
-        handle_0x8(opcode);
+        this.handle_0x8(opcode);
         break;
       case 0x9000:
         //9xy0 - SNE Vx, Vy
@@ -194,11 +208,11 @@ class Chip8 {
             if ((pixel & (0b10000000 >> xline)) != 0) {
               //Check for collision
               if (
-                this.graphics[x + xline + (y + yline) * this.displayWidth] == 1
+                this.display[x + xline + (y + yline) * this.displayWidth] == 1
               )
                 this.V[0xf] = 1;
               //Perform XOR
-              this.graphics[x + xline + (y + yline) * this.displayWidth] ^= 1;
+              this.display[x + xline + (y + yline) * this.displayWidth] ^= 1;
             }
           }
         }
@@ -207,10 +221,10 @@ class Chip8 {
         this.PC += 2;
         break;
       case 0xe000:
-        handle_0xE(opcode);
+        this.handle_0xE(opcode);
         break;
       case 0xf000:
-        handle_0xF(opcode);
+        this.handle_0xF(opcode);
         break;
       default:
         console.log(
@@ -258,6 +272,12 @@ class Chip8 {
         this.V[(opcode & 0x0f00) >> 8] |= this.V[(opcode & 0x00f0) >> 4];
         this.PC += 2;
         break;
+      case 0x0002:
+        // 8xy2 - AND Vx, Vy
+        // Set Vx = Vx AND Vy.
+        this.V[(opcode & 0x0f00) >> 8] &= this.V[(opcode & 0x00f0) >> 4];
+        this.PC += 2;
+        break;
       case 0x0003:
         //8xy3 - XOR Vx, Vy
         //Set Vx = Vx XOR Vy
@@ -281,7 +301,7 @@ class Chip8 {
       case 0x0005:
         //8xy5 - SUB Vx, Vy
         //Set Vx = Vx - Vy, if Vx > Vy then VF = 1
-        if (this.V[(opcode & 0x0f00) >> 8] > this.v[(opcode & 0x00f0) >> 4])
+        if (this.V[(opcode & 0x0f00) >> 8] > this.V[(opcode & 0x00f0) >> 4])
           this.V[0xf] = 1;
         else this.V[0xf] = 0;
         this.V[(opcode & 0x0f00) >> 8] -= this.V[(opcode & 0x00f0) >> 4];
@@ -291,13 +311,13 @@ class Chip8 {
         //8xy6 - SHR Vx {, Vy}
         //Set VF = Vx SHR 1, then Vx >> 1
         this.V[0xf] = this.V[(opcode & 0x0f00) >> 8] && 0x01;
-        this.v[(opcode & 0x0f00) >> 8] >>= 1;
+        this.V[(opcode & 0x0f00) >> 8] >>= 1;
         this.PC += 2;
         break;
       case 0x0007:
         //8xy7 - SUBN Vx, Vy
         //Set Vx = Vy - Vx, if Vy > Vx then VF = 1
-        if (this.V[(opcode & 0x00f0) >> 4] > this.v[(opcode & 0x0f00) >> 8])
+        if (this.V[(opcode & 0x00f0) >> 4] > this.V[(opcode & 0x0f00) >> 8])
           this.V[0xf] = 1;
         else this.V[0xf] = 0;
         this.V[(opcode & 0x0f00) >> 8] =
@@ -360,10 +380,10 @@ class Chip8 {
         this.keyboard.waitForKeypress = true;
         this.halted = true;
         this.keyboard.onNextKeyPressed = function(keyCode) {
-          this.V[(opcode & 0x0f00) >> 8] = this.keyHandler.lastKeyPressed;
+          this.V[(opcode & 0x0f00) >> 8] = this.keyboard.lastKeyPressed;
           this.PC += 2;
           this.halted = false;
-        };
+        }.bind(chip8);
         break;
       case 0x0015:
         //Fx15 - LD DT, Vx
@@ -400,7 +420,7 @@ class Chip8 {
           (this.V[(opcode & 0x0f00) >> 8] % 100) / 10,
           10
         );
-        this.memory[this.I + 2] = cpu.V[x] % 10;
+        this.memory[this.I + 2] = this.V[x] % 10;
         this.PC += 2;
         break;
       case 0x0055:
@@ -411,7 +431,7 @@ class Chip8 {
         for (let i = 0; i <= x; i++) {
           this.memory[this.I + i] = this.V[i];
         }
-        I += x + 1;
+        this.I += x + 1;
         this.PC += 2;
         break;
       case 0x0065:
@@ -422,7 +442,7 @@ class Chip8 {
         for (let i = 0; i <= x; i++) {
           this.V[i] = this.memory[this.I + i];
         }
-        I += x + 1;
+        this.I += x + 1;
         this.PC += 2;
         break;
       default:

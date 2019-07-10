@@ -46,11 +46,12 @@ rom_list.forEach(i => {
 });
 chip8.canvasRender.render(chip8.display);
 
-// Set up start button
-let start_btn = document.getElementById('start-btn');
-start_btn.onclick = startEmu;
+let emu_interval = null;
+let fps = 300;
+let interval_time_ms = (1 / fps) * 1000;
 
 function startEmu() {
+  stopEmu();
   let rom_name =
     rom_select.value || rom_select.options[rom_select.selectedIndex].value;
   console.log(rom_name);
@@ -58,24 +59,30 @@ function startEmu() {
     alert('Please select a ROM');
     return;
   }
-  // chip8.init();
   let xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = handleStateChange;
-  xhr.open('GET', `./roms/${rom_name}`);
+  xhr.open('GET', `./roms/${rom_name}`, true);
+  xhr.responseType = 'arraybuffer';
+  xhr.onload = loadAndInit;
   xhr.send();
 
-  function handleStateChange() {
-    if (xhr.readyState == 4) {
-      loadRom(xhr.status == 200 ? xhr.response : null);
-    }
+  function loadAndInit() {
+    chip8.init();
+    chip8.loadROM(new Uint8Array(xhr.response));
+    let runCycle = chip8.runCycle.bind(chip8);
+    emu_interval = setInterval(runCycle, interval_time_ms);
   }
-
-  function loadRom(response) {
-    console.log(response);
-  }
-
-  // TODO: Figure out how to load ROM and start emulation
 }
 
-chip8.init();
+function stopEmu() {
+  clearInterval(emu_interval);
+}
+
+// Set up start button
+let start_btn = document.getElementById('start-btn');
+start_btn.onclick = startEmu;
+
+// Set up stop button
+let stop_btn = document.getElementById('stop-btn');
+stop_btn.onclick = stopEmu;
+
 // while (false) {}
