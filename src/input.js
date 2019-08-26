@@ -19,7 +19,7 @@ class Keyboard {
       90: 0xc, // Z
       88: 0xd, // X
       67: 0xe, // C
-      86: 0xf // V
+      86: 0xf, // V
     };
   }
 
@@ -28,20 +28,28 @@ class Keyboard {
   }
 
   isPressed(event) {
-    return this.keysPressed[this.translateKeyCode[event.keyCode]];
+    return this.keysPressed[this.getHexKey(event.keyCode)];
+  }
+
+  getHexKey(keyCode) {
+    return this.translateKeyCode[keyCode];
   }
 
   isDown(event) {
-    console.log(`Pressed ${event.keyCode}`);
-    this.keysPressed[this.translateKeyCode[event.keyCode]] = 1;
-    this.onNextKeyPressed(event.keyCode);
+    let hexKey = this.getHexKey(event.keyCode);
+    if (typeof hexKey === 'undefined') return;
+    console.log(`Pressed ${hexKey}`);
+    this.keysPressed[hexKey] = 1;
+    this.onNextKeyPressed(hexKey);
     // We only want onNextKeyPressed to run once
     // After a Fx0A opcode
     this.onNextKeyPressed = function() {};
   }
 
   isUp(event) {
-    console.log(`Released ${event.keyCode}`);
-    delete this.keysPressed[this.translateKeyCode[event.keyCode]];
+    let hexKey = this.getHexKey(event.keyCode);
+    if (typeof hexKey === 'undefined') return;
+    console.log(`Released ${hexKey}`);
+    delete this.keysPressed[hexKey];
   }
 }

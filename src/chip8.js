@@ -301,7 +301,7 @@ class Chip8 {
         let sum =
           this.V[(opcode & 0x0f00) >> 8] + this.V[(opcode & 0x00f0) >> 4];
         if (sum > 0xff) {
-          this.V[(opcode & 0x0f00) >> 8] = 0xff;
+          this.V[(opcode & 0x0f00) >> 8] = sum & 0xff;
           this.V[0xf] = 1;
         } else {
           this.V[(opcode & 0x0f00) >> 8] = sum;
@@ -388,10 +388,10 @@ class Chip8 {
       case 0x000a:
         //Fx0A - LD Vx, K
         //Wait for a key press, store the value of the key in Vx
-        this.keyboard.waitForKeypress = true;
         this.halted = true;
-        this.keyboard.onNextKeyPressed = function(keyCode) {
-          this.V[(opcode & 0x0f00) >> 8] = this.keyboard.lastKeyPressed;
+        this.keyboard.onNextKeyPressed = function(hexKey) {
+          this.V[(opcode & 0x0f00) >> 8] = hexKey;
+          console.log(hexKey);
           this.PC += 2;
           this.halted = false;
         }.bind(chip8);
@@ -417,21 +417,15 @@ class Chip8 {
       case 0x0029:
         //Fx29 - LD F, Vx
         //Set I = location of sprite for digit Vx
-        // FIXME: This seems broken...
         this.I = this.memory[this.V[(opcode & 0x0f00) >> 8] * 5];
         this.PC += 2;
         break;
       case 0x0033:
         //Fx33 - LD B, Vx
         //Store BCD representation of Vx in memory locations I, I+1, and I+2
-        this.memory[this.I] = parseInt(
-          this.V[(opcode & 0x0f00) >> 8] / 100,
-          10
-        );
-        this.memory[this.I + 1] = parseInt(
-          (this.V[(opcode & 0x0f00) >> 8] % 100) / 10,
-          10
-        );
+        var x = (opcode & 0x0f00) >> 8;
+        this.memory[this.I] = this.V[x] / 100;
+        this.memory[this.I + 1] = (this.V[x] % 100) / 10;
         this.memory[this.I + 2] = this.V[x] % 10;
         this.PC += 2;
         break;
@@ -439,7 +433,7 @@ class Chip8 {
         //Fx55 - LD [I], Vx
         //Store registers V0 through Vx in memory starting at location I
         //I is set to I + X + 1 after operation
-        var x = this.V[(opcode & 0x0f00) >> 8];
+        var x = (opcode & 0x0f00) >> 8;
         for (let i = 0; i <= x; i++) {
           this.memory[this.I + i] = this.V[i];
         }
@@ -450,7 +444,7 @@ class Chip8 {
         //Fx65 - LD Vx, [I]
         //Read registers V0 through Vx from memory starting at location I
         //I is set to I + X + 1 after operation
-        var x = this.V[(opcode & 0x0f00) >> 8];
+        var x = (opcode & 0x0f00) >> 8;
         for (let i = 0; i <= x; i++) {
           this.V[i] = this.memory[this.I + i];
         }
